@@ -1,0 +1,1962 @@
+---
+title: |
+  ![](/Users/catarinafranco/Dropbox (Cambridge University)/Mass4tox/report logo/1x/Asset 3.png)
+author of the report: CatFranco@mass4tox
+date: "31st January 2021"
+output:
+  html_document:
+    css: bootstrap.css
+    code_folding: hide
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+    theme:
+      bootswatch: minty
+user: Alex Fulton
+Monday item ID: '1854746152'
+analyst: BiniRamachandran@mass4tox
+---
+
+```{r packages, include = FALSE}
+# load libraries 
+library(readxl)
+library(excelR)
+library(downloadthis)
+library(DT)
+library(ggplot2)
+library(tidyverse)
+library(plotly)
+library(MSnbase)
+library(colorblindr)
+library(mzR)
+library(msdata)
+library(RColorBrewer)
+# load libraries (this gets ggplot2 and related libraries)
+library(readr)
+
+# these are from Bioconductor
+library(limma) 
+library(edgeR) 
+library(sva)
+
+# we use this for the pairwise correlation plots
+library(psych)
+library(stringr)
+library(tibble)
+library(stringr)
+```
+
+ *Analyst: Catarina Franco and Bini Ramachandran*  
+ *User: Alex Fulton*  
+ *PI: Anne Willis*  
+ ***Title of the project: RBPome of Huh-7 and HepG2 cell lines***  
+
+This report summarizes sample handling for mass spectrometry and data analysis (Proteome Discoverer analysis and any additional data manipulation necessary).
+ 
+## Note test
+
+The RBPome of both cell lines was extracted using OOPS protocol and samples from RNase treated and non-treated samples were analysed by mass spectrometry (interfase, organic phase and total input). Bellow there is a table with the correspondence of the internal samples number and sample designation.
+
+```{r rawtools sampleTable, include = TRUE, warning=FALSE}
+
+samples <- read_excel("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/Report/AlexFulton_OOPS_1854746152/samplesDesignation.xlsx")
+
+datatable(samples)
+
+```
+
+```{r sampletable_download, include = TRUE, warning=FALSE}
+DownloadSamples <- samples %>%
+  download_this(
+    output_name = "sampleDesignation dataset",
+    output_extension = ".csv",
+    button_label = "Download sample designation as csv",
+    button_type = "default",
+    has_icon = TRUE,
+    icon = "fa fa-save"
+  )
+DownloadSamples
+```
+
+## Methods
+
+### 1. Protein estimation (only for organic phase and input samples) {.tabset}
+
+#### Organic phase
+
+1. Resuspend OOPS organic phase samples in 50uL 25mM AMBIC and add 5uL of RapiGest 1% (to yield a final concentration of 0.1%)
+2. Vortex for 12 min (2 min manually and 10 min on vortex genie at 2000 rpm) at RT
+3. Samples boiled 80C for 10 min;
+4. Determine protein concentration in samples using Pierce 660 nm assay 
+
+*OBS: 1:5 dilution of samples were not in the range. The whole of the samples were taken for digestion*
+
+#### Input
+
+1. Dried the samples in speed vac to remove the methanol completely before resuspension.
+2. Resuspend input samples in 50uL 25mM AMBIC and add 5uL of RapiGest 1% (to yield a final concentration of 0.1%)
+3. Vortex for 12 min (2 min manually and 10 min on vortex genie at 2000 rpm) at RT
+4. Samples boiled 80C for 10 min;
+5. Determine protein concentration in samples using Pierce 660 nm assay 
+
+```{r rawtools proteinTable organic phase, include = TRUE, warning=FALSE}
+ 
+protein1 <- read_excel("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/Report/AlexFulton_OOPS_1854746152/OrganicPhase_totalProtein_estimation.xlsx")
+
+datatable(protein1)
+
+Downloadprotein1 <- protein1 %>%
+  download_this(
+    output_name = "Organic phase proteinEstimation dataset",
+    output_extension = ".xlsx",
+    button_label = "Download organic phase protein estimation as xlsx",
+    button_type = "default",
+    has_icon = TRUE,
+    icon = "fa fa-save"
+  )
+Downloadprotein1
+```
+
+### {-}
+
+### 2. In-solution digestion {.tabset}
+
+#### Interphase
+
+1. Ressuspend OOPS interphase samples in 20uL 25mM AMBIC and add and add 2uL of RapiGest 1% (to yield a final concentration of 0.1%)
+2. Vortex for 12 min (2 min manually and 10 min on vortex genie at 2000 rpm) at RT followed by incubation at 80C for 10 min
+3. Proteins reduced with DTT: 1,1 µl of 11 mg/ml (72 mM) stock (4 mM Final) [60°C 10 min]
+4. Put samples in the fridge for 5 minutes
+5. Alkylated with Iodoacetamide: 1.2 µl of 49.3 mg/ml (266 mM) stock (14 mM Final) [RT dark 30 min]
+6. IAA quenched with DTT: add 1.1 µl of 11 mg/ml (72 mM) stock (7 mM Final including amount added in step 10]
+7. 2.5 µl Trypsin (0.2 mg/ml stock=1ug) added for 50:1 protein:trypsin ratio [37°C 750 rpm overnight]
+	
+*OBS: HepG2_Rnase- samples appeared cloudy with a precipitate in some of the samples. Frozen the samples to check the completeness of digestion before acidification and hydrolysis of RapiGest.*
+	
+Spin down 4 samples, one from each group (4, 14, 24, 34) were diluted 1:100 and injected 2 uL to check the completeness of digestion
+
+8. 0.5uL TFA and 45min incubation at 37C
+9. 13.000 x g 15min 4C spin
+10. Samples were stored at -20C until injection.
+
+*Note: Injected 2 uL of all the samples over a 30 min method to range based on the intensity of identified peptides. However, the peptide identification varied across the samples based on the cell line and Rnase treatment. Normalization set to injection volume (12 uL of 1:20 dilution ran over 90 min gradient).*
+
+#### Organic phase
+
+1. Resuspend OOPS organic phase samples in 50uL 25mM AMBIC and add 5uL of RapiGest 1% (to yield a final concentration of 0.1%)
+2. Vortex for 12 min (2 min manually and 10 min on vortex genie at 2000 rpm) at RT
+3. Samples boiled 80C for 10 min;
+4. Determine protein concentration in samples using Pierce 660 nm assay 
+
+***OBS: 1:5 dilution of samples were not in the range. The whole of the samples were taken for digestion.***
+
+5. Proteins reduced with DTT: 3 µl of 11 mg/ml (72 mM) stock (4 mM Final) [60°C 10 min]
+6. Put samples in the fridge for 5 minutes
+7. Alkylated with Iodoacetamide: 3.1 µl of 49.3 mg/ml (266 mM) stock (14 mM Final) [RT dark 30 min]
+8. IAA quenched with DTT: add 2.9 µl of 11 mg/ml (72 mM) stock (7 mM Final including amount added in step 5]
+9. 2.5 µl Trypsin (0.2 mg/ml stock=1ug) added for 50:1 protein:trypsin ratio [37°C 750 rpm overnight]
+10. Stopped digestion by adding 0.6 uL of TFA per sample (1% final conc)
+11. Incubated at 37 C for 45 min to hydrolyse RapiGest
+12. Spin down at 13k xg for 15 min at 4 C and collected the supernatant. Samples were stored at -20 C until injection.
+
+*Note: Injected 2 uL of 1:5 diluted samples 9, 19, 29, & 39 to range over a 30 min method. Based on this, 6 uL of all samples at 1:5 dilution were ran over a 90 min gradient.*
+
+#### Input
+
+1. Proteins reduced with DTT 2.8 µl of 11 mg/ml (72 mM) stock (4 mM Final) [60°C 10 min]
+2. Put samples in the fridge for 5 minutes
+3. Alkylated with Iodoacetamide: 2.8 µl of 49.3 mg/ml (266 mM) stock (14 mM Final) [RT dark 30 min]
+4. IAA quenched with DTT: add 2.6 µl of 11 mg/ml (72 mM) stock (7 mM Final including amount added in step 5]
+5. 2.5 µl Trypsin (0.2 mg/ml stock=1ug) added for 50:1 protein:trypsin ratio [37°C 750 rpm overnight]
+6. Stopped digestion by adding 0.6 uL of TFA per sample (1% final conc)
+7. Incubated at 37 C for 45 min to hydrolyse RapiGest
+8. Spin down at 13k xg for 15 min at 4 C and collected the sup
+9. Stored at -20 C until injection
+
+### {-}
+
+### 3. LC-MS/MS
+
+1. To determine injection volumes of each sample (target of BPI of 1-2e9) 1 survey runs per group of 15 min gradient (30 min program) were performed on the samples. Based on the BPI obtained, sample final injection volumes were adjusted to a defined volume fized for all the individual samples.
+2. Samples were injected in a randomised manner
+3. Injected samples were analysed using an Ultimate 3000 RSLC™ nano system (Thermo Scientific, Hemel Hempstead) coupled to an Orbitrap Eclipse™ mass spectrometer (Thermo Scientific).
+4. The sample was loaded onto the trapping column (Thermo Scientific, PepMap100, C18, 300 μm X 5 mm), using partial loop injection, for three minutes at a flow rate of 15 μL/min with 0.1% (v/v) FA in 3% acetonitrile.
+5. The sample was resolved on the analytical column (Easy-Spray C18 75 µm x 500 mm 2 µm column) at a flow rate of 300 nL min-1 using a gradient of 97% A (0.1% formic acid) 3% B (80% acetonitrile 0.1% formic acid) to 25% B over 55 minutes, then to 40% B for additional 6 minutes, then to 90% B for another 1 minute which remained at 90% B for 9 minutes, percentage of B was then lowered to 3.8% to allow the column to re-equilibrate for 15 minutes before next injection.
+6. Data was acquired using two FAIMS cv's (-45v and -65v) and each FAIMS experiment had a maximum cycle time of 1.5s.
+7. For both FAIMS experiments the data-dependent program used for data acquisition consisted of a 120,000 resolution full-scan MS scan (AGC set to 100% (4e5 ions)  with a maximum fill time of 50ms). MS/MS was perfomed at the mass range of 150-2000 m/z using a resolution of 60,000   (AGC set to 100% (5e4 ions) with a maximum fill time of 118ms) with an isolation window of 1.2 m/z and an HCD collision energy of 32%.
+8. To avoid repeated selection of peptides for MSMS the program used a 40 second dynamic exclusion window.
+
+### 4. Proteome Discoverer v2.5 analysis
+
+1. Raw data were imported and data processed in Proteome Discoverer v2.5 (Thermo Fisher Scientific). The raw files were submitted to a database search using Proteome Discoverer with SequestHF against the Homo sapiens database containing human protein sequences from UniProt/Swiss-Prot. Common contaminant proteins (several types of human keratins, BSA and porcine trypsin) were added to the database. The spectra identification was performed with the following parameters: MS accuracy, 10 p.p.m.; MS/MS accuracy of 0.01 Da for spectra acquired in Orbitrap analyzer; up to two missed cleavage sites allowed; carbamidomethylation of cysteine as a fixed modification; and oxidation of methionine as variable modifications. Percolator node was used for false discovery rate estimation and only rank 1 peptide identifications of high confidence (FDR < 1%) were accepted.
+
+## Quality control
+
+### 1. MS1 chromatograms
+
+#### Interphase {.tabset}
+
+##### Sample 1 (HepG2 -)
+```{r S1 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+## 1
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_1.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 2 (HepG2 -)
+```{r S2 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_2.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 3 (HepG2 -)
+```{r S3 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_3.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 4 (HepG2 -)
+```{r S4 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_4.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 5 (HepG2 -)
+```{r S5 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_5.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 11 (HepG2 +)
+```{r S11 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_11.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 12 (HepG2 +)
+```{r S12 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_12.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 13 (HepG2 +)
+```{r S13 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_13.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 14 (HepG2 +)
+```{r S14 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_14.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 15 (HepG2 +)
+```{r S15 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_15.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 21 (Huh-7 -)
+```{r S21 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_21.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 22 (Huh-7 -)
+```{r S22 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_22.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 23 (Huh-7 -)
+```{r S23 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_23.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+
+##### Sample 24 (Huh-7 -)
+```{r S24 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_24.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 25 (Huh-7 -)
+```{r S25 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_24.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 31 (Huh-7 +)
+```{r S31 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_31.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 32 (Huh-7 +)
+```{r S32 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_32_20220129174611.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 33 (Huh-7 +)
+```{r S33 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_33.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 34 (Huh-7 +)
+```{r S34 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_34.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 35 (Huh-7 +)
+```{r S35 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_35.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+### {-}
+
+#### Organic phase {.tabset}
+
+##### Sample 6 (HepG2 -)
+```{r S6 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_6.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 7 (HepG2 -)
+```{r S7 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_7.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 8 (HepG2 -)
+```{r S8 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_8.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 9 (HepG2 -)
+```{r S9 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_9.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 10 (HepG2 -)
+```{r S10 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_10.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 16 (HepG2 +)
+```{r S16 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_16.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 17 (HepG2 +)
+```{r S17 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_17.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 18 (HepG2 +)
+```{r S18 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_18.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 19 (HepG2 +)
+```{r S19 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_19.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 20 (HepG2 +)
+```{r S20 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_20.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 26 (Huh-7 -)
+```{r S26 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_26.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 27 (Huh-7 -)
+```{r S27 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_27.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 29 (Huh-7 -)
+```{r S29 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_29.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+
+##### Sample 30 (Huh-7 -)
+```{r S30 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_30.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 36 (Huh-7 -)
+```{r S36 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_36.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 37 (Huh-7 +)
+```{r S37 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_37.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 38 (Huh-7 +)
+```{r S38 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_38.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 39 (Huh-7 +)
+```{r S39 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_39.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+##### Sample 40 (Huh-7 +)
+```{r S40 , include = TRUE, warning=FALSE}
+## overlapping different raw files from the same LFQ experiment
+#Extract the mzML from the raw files using MS convert
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_40.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample<- subset(hd, select =c("retentionTime", "basePeakIntensity"))
+
+ggplot(data=sample, aes(x=retentionTime, y=basePeakIntensity)) +
+  geom_line(aes(color="#FF9999", alpha=1), show.legend = FALSE) + theme_classic()
+
+
+```
+
+
+#### Input
+
+Soon
+
+### {-}
+
+### 2. Total ion current distribution {.tabset}
+
+In these plots  figures you can see how is the distribution of the total ion current (total intensity of all the ions going inside of the mass spec) per sample. 
+
+#### Interphase
+
+
+```{r TICinterfase, include = TRUE, warning=FALSE}
+
+## 1
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_1.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample1<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample1["Sample"] <- "Sample1"
+
+## 2
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_2.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample2<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample2["Sample"] <- "Sample2"
+
+## 3
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_3.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample3<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample3["Sample"] <- "Sample3"
+
+## 4
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_4.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample4<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample4["Sample"] <- "Sample4"
+
+## 3
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_3.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample3<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample3["Sample"] <- "Sample3"
+
+## 5
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_5.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample5<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample5["Sample"] <- "Sample5"
+
+## 11
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_11.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample11<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample11["Sample"] <- "Sample11"
+
+## 12
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_12.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample12<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample12["Sample"] <- "Sample12"
+
+## 13
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_13.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample13<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample13["Sample"] <- "Sample13"
+
+## 14
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_14.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample14<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample14["Sample"] <- "Sample14"
+
+## 15
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_15.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample15<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample15["Sample"] <- "Sample15"
+
+## 21
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_21.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample21<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample21["Sample"] <- "Sample21"
+
+## 22
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_22.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample22<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample22["Sample"] <- "Sample22"
+
+## 23
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_23.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample23<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample23["Sample"] <- "Sample23"
+
+
+## 24
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_24.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample24<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample24["Sample"] <- "Sample24"
+
+## 25
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_25.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample25<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample25["Sample"] <- "Sample25"
+
+## 31
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_31.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample31<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample31["Sample"] <- "Sample31"
+
+## 32
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_32_20220129174611.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample32<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample32["Sample"] <- "Sample32"
+
+## 33
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_33.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample33<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample33["Sample"] <- "Sample33"
+
+## 34
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_34.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample34<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample34["Sample"] <- "Sample34"
+
+## 35
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_LFQ_35.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample35<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample35["Sample"] <- "Sample35"
+
+MergedSamples<- rbind(sample1, sample2, sample3, sample4, sample5, sample11, sample12, sample13, sample14, sample15, sample21, sample22, sample23, sample24, sample25, sample31, sample32, sample33, sample34, 
+                      sample35)
+nb.cols <- 30
+mycolors <- colorRampPalette(brewer.pal(8, "Set2"))(nb.cols)
+
+ggplot(MergedSamples, aes(Sample, log10(totIonCurrent))) + geom_boxplot(aes(color=Sample), show.legend = FALSE) +
+  coord_trans(y ='log10') + theme_classic() +
+  scale_color_manual(values = mycolors) +
+  theme(axis.text.x = element_text(angle = 45, hjust=1)) +
+  scale_x_discrete (limits = c("Sample1", "Sample2", "Sample3", "Sample4", "Sample5", "Sample11", "Sample12", "Sample13", "Sample14", "Sample15", "Sample21", "Sample22", "Sample23", "Sample24", "Sample25", "Sample31", "Sample32", "Sample33", "Sample34", "Sample35"))
+
+
+```
+
+#### Organic phase
+
+```{r TICorganicphase, include = TRUE, warning=FALSE}
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_6.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample6<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample6["Sample"] <- "Sample6"
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_7.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample7<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample7["Sample"] <- "Sample7"
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_8.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample8<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample8["Sample"] <- "Sample8"
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_9.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample9<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample9["Sample"] <- "Sample9"
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_10.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample10<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample10["Sample"] <- "Sample10"
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_16.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample16<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample16["Sample"] <- "Sample16"
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_17.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample17<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample17["Sample"] <- "Sample17"
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_18.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample18<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample18["Sample"] <- "Sample18"
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_19.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample19<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample19["Sample"] <- "Sample19"
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_20.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample20<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample20["Sample"] <- "Sample20"
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_26.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample26<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample26["Sample"] <- "Sample26"
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_27.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample27<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample27["Sample"] <- "Sample27"
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_29.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample29<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample29["Sample"] <- "Sample29"
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_30.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample30<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample30["Sample"] <- "Sample30"
+
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_36.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample36<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample36["Sample"] <- "Sample36"
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_37.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample37<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample37["Sample"] <- "Sample37"
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_38.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample38<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample38["Sample"] <- "Sample38"
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_39.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample39<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample39["Sample"] <- "Sample39"
+
+
+mzf <- ("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/mzML/1854746152_AF_OOPS_Organic_LFQ_40.mzML")
+ms <- openMSfile(mzf)
+hd <- header(ms)
+
+sample40<- subset(hd, select =c("retentionTime", "totIonCurrent"))
+sample40["Sample"] <- "Sample40"
+
+
+MergedSamples<- rbind(sample6, sample7, sample8, sample9, sample10, sample16, sample17, sample18, sample19, sample20, sample26, sample27, sample29, sample30, sample36, sample37, sample38, sample39, 
+                      sample40)
+nb.cols <- 30
+mycolors <- colorRampPalette(brewer.pal(8, "Set2"))(nb.cols)
+
+ggplot(MergedSamples, aes(Sample, log10(totIonCurrent))) + geom_boxplot(aes(color=Sample), show.legend = FALSE) +
+  coord_trans(y ='log10') + theme_classic() +
+  scale_color_manual(values = mycolors) +
+  theme(axis.text.x = element_text(angle = 45, hjust=1)) +
+  scale_x_discrete (limits = c("Sample6", "Sample7", "Sample8", "Sample9", "Sample10", "Sample16", "Sample17", "Sample18", "Sample19", "Sample20", "Sample26", "Sample27", "Sample29", "Sample30", "Sample36", "Sample37", "Sample38", "Sample39", "Sample40"))
+```
+
+
+#### Input
+
+Soon
+
+## {-}
+
+### 3. Number of identified proteins {.tabset}
+
+#### Interphase
+
+| Sample group | Proteins | Peptide groups | Unique Proteins | Unique peptides groups |
+|:------:|:---------:|:---------:|:---------:|:---------:|
+| HepG2 interfase - | 2232 | 10659 | 393 | 3964 |
+| HepG2 interphase + | 2655 | 12432 | 816 | 5737 |
+| Huh7 interfase - | 476 | 1103 | 7 | 158 |
+| Huh7 interfase + | 2490 | 13238 | 2021 | 12293 |
+
+Below you can find a tables of the unique proteins found only in the RNAase non-treated samples
+
+*HepG2 unique proteins on the RNAase non-treated samples*
+
+```{r  HepG2_unique_proteins, include = TRUE, warning=FALSE}
+
+HepG2_unique_proteins <- read_excel("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/PD exports/Interfaphase/1854746152_AF_HepG2_interfase_uniqueNON_TREATED.xlsx")
+
+datatable(HepG2_unique_proteins)
+
+```
+
+```{r HepG2_unique_proteins_download, include = TRUE, warning=FALSE}
+DownloadHepG2_unique_proteins <- HepG2_unique_proteins %>%
+  download_this(
+    output_name = "HepG2_unique_proteins dataset",
+    output_extension = ".xlsx",
+    button_label = "Download HepG2_unique_proteins dataset as xlsx",
+    button_type = "default",
+    has_icon = TRUE,
+    icon = "fa fa-save"
+  )
+DownloadHepG2_unique_proteins
+```
+
+*Huh7 unique proteins on the RNAase non-treated samples*
+
+```{r  Huh7_unique_proteins, include = TRUE, warning=FALSE}
+
+Huh7_unique_proteins <- read_excel("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/PD exports/Interfaphase/1854746152_AF_Huh7_interfase_uniqueNON_TREATED.xlsx")
+
+datatable(Huh7_unique_proteins)
+
+```
+
+```{r Huh7_unique_proteins_download, include = TRUE, warning=FALSE}
+DownloadHuh7_unique_proteins <- Huh7_unique_proteins %>%
+  download_this(
+    output_name = "Huh7_unique_proteins dataset",
+    output_extension = ".xlsx",
+    button_label = "Download Huh7_unique_proteins dataset as xlsx",
+    button_type = "default",
+    has_icon = TRUE,
+    icon = "fa fa-save"
+  )
+DownloadHuh7_unique_proteins
+```
+
+#### Organic phase
+
+| Sample group | Proteins | Peptide groups | 
+|:------:|:---------:|:---------:|
+| HepG2 organic phase | 2078 | 2374 |
+| Huh7 organic phase | 1917 | 10350 | 
+
+
+### 4. Missing values {.tabset}
+
+#### Interphase
+
+HepG2 dataset
+
+```{r missing valuesInterphaseHepG2, include = TRUE, warning=FALSE}
+
+# Read proteins data in
+f <- "/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/PD exports/Interfaphase/1854746152_AF_HepG2_interfase_NORM-(1)_Proteins.txt" #make sure r-friendly headers
+e <- grepEcols(f, "Abundance F", split = "\t") # Locate the Raw Abundance Values from the PD file that is separated by tabs
+x <- readMSnSet2(f, e, sep = "\t") # Get the Raw Abundance Values from the PD file
+
+## Data annotation
+# create pData
+Sample <- gsub("Abundance\\.F1\\.\\w*\\.Sample\\.(\\d\\.+\\w*)", "\\1", colnames(exprs(x)))
+tmp <- data.frame(do.call(rbind, strsplit(Sample, "[..]")))
+tmp<-tmp[,c(3,1)]
+names(tmp) <- c("Sample", "Replicate")
+
+
+## Number of high confidance proteins
+cp <- data.frame(table(fData(x)$Protein.FDR.Confidence))
+colnames(cp)[1] <- "Protein.FDR.Confidence"
+tmp <- x[fData(x)$Protein.FDR.Confidence == "High",]
+
+## Number of missing values
+naplot(tmp)
+
+```
+
+Huh7 dataset
+
+```{r missing valuesInterphaseHuh7, include = TRUE, warning=FALSE}
+
+# Read proteins data in
+f <- "/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/PD exports/Interfaphase/1854746152_AF_Huh7_NORM_Proteins.txt" #make sure r-friendly headers
+e <- grepEcols(f, "Abundance F", split = "\t") # Locate the Raw Abundance Values from the PD file that is separated by tabs
+x <- readMSnSet2(f, e, sep = "\t") # Get the Raw Abundance Values from the PD file
+
+## Data annotation
+# create pData
+Sample <- gsub("Abundance\\.F1\\.\\w*\\.Sample\\.(\\d\\.+\\w*)", "\\1", colnames(exprs(x)))
+tmp <- data.frame(do.call(rbind, strsplit(Sample, "[..]")))
+tmp<-tmp[,c(3,1)]
+names(tmp) <- c("Sample", "Replicate")
+
+
+## Number of high confidance proteins
+cp <- data.frame(table(fData(x)$Protein.FDR.Confidence))
+colnames(cp)[1] <- "Protein.FDR.Confidence"
+tmp <- x[fData(x)$Protein.FDR.Confidence == "High",]
+
+## Number of missing values
+naplot(tmp)
+
+```
+
+#### Organic phase
+
+HepG2 dataset
+
+```{r missing valuesorganicphaseHepG2, include = TRUE, warning=FALSE}
+
+# Read proteins data in
+f <- "/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/PD exports/Interfaphase/1854746152_AF_HepG2_organicPhase_NORM_percolator_Proteins.txt" #make sure r-friendly headers
+e <- grepEcols(f, "Abundance F", split = "\t") # Locate the Raw Abundance Values from the PD file that is separated by tabs
+x <- readMSnSet2(f, e, sep = "\t") # Get the Raw Abundance Values from the PD file
+
+## Data annotation
+# create pData
+Sample <- gsub("Abundance\\.F1\\.\\w*\\.Sample\\.(\\d\\.+\\w*)", "\\1", colnames(exprs(x)))
+tmp <- data.frame(do.call(rbind, strsplit(Sample, "[..]")))
+tmp<-tmp[,c(3,1)]
+names(tmp) <- c("Sample", "Replicate")
+
+
+## Number of high confidance proteins
+cp <- data.frame(table(fData(x)$Protein.FDR.Confidence))
+colnames(cp)[1] <- "Protein.FDR.Confidence"
+tmp <- x[fData(x)$Protein.FDR.Confidence == "High",]
+
+## Number of missing values
+naplot(tmp)
+
+```
+
+
+Huh7 dataset
+
+```{r missing valuesorganicphaseHuh7, include = TRUE, warning=FALSE}
+
+# Read proteins data in
+f <- "/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/PD exports/Interfaphase/1854746152_AF_Huh7_organicPhase_NORM_percolator_Proteins.txt" #make sure r-friendly headers
+e <- grepEcols(f, "Abundance F", split = "\t") # Locate the Raw Abundance Values from the PD file that is separated by tabs
+x <- readMSnSet2(f, e, sep = "\t") # Get the Raw Abundance Values from the PD file
+
+## Data annotation
+# create pData
+Sample <- gsub("Abundance\\.F1\\.\\w*\\.Sample\\.(\\d\\.+\\w*)", "\\1", colnames(exprs(x)))
+tmp <- data.frame(do.call(rbind, strsplit(Sample, "[..]")))
+tmp<-tmp[,c(3,1)]
+names(tmp) <- c("Sample", "Replicate")
+
+
+## Number of high confidance proteins
+cp <- data.frame(table(fData(x)$Protein.FDR.Confidence))
+colnames(cp)[1] <- "Protein.FDR.Confidence"
+tmp <- x[fData(x)$Protein.FDR.Confidence == "High",]
+
+## Number of missing values
+naplot(tmp)
+
+```
+
+#### Input
+
+Soon
+
+### {-}
+
+### 5. Sample abundance distribution {.tabset}
+
+Boxplot of raw protein abundances
+
+#### Interphase
+
+```{r RawAbundanceHepG2interfase, include = TRUE, warning=FALSE}
+
+# read the proteins.csv file
+data_start <- read.csv("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/PD exports/Interfaphase/1854746152_AF_HepG2_interfase_NORM-(1)_Proteins.csv")
+
+# master proteins only
+newdata <- subset(data_start, Master=='IsMasterProtein')
+
+# Protein FDR confidence = high
+newdata2 <- subset(newdata, Protein.FDR.Confidence.Combined=='High')
+
+# Select raw abundances
+newdata3 <- newdata2[c(7, 65:74)]
+
+# filter out proteins missing values
+data_no_na <- na.omit(newdata3)
+
+# remove sp Accessions (contaminants)
+data_no_aa_noSP <- subset(data_no_na, Accession!='sp')
+
+# fix the column headers
+col_headers <- colnames(data_no_aa_noSP) 
+colnames(data_no_aa_noSP) <- col_headers
+
+# save the annotations (gene symbol and protein accession) and remove from data frame
+
+data_raw <- as.data.frame(data_no_aa_noSP[2:11]) 
+
+Abundance.F1.Sample.non.treated <- data_raw %>%
+  select(Abundance.F1.Sample.non.treated)
+Abundance.F1.Sample.non.treated["sample"] <- "Abundance.F1.Sample.non.treated"
+names(Abundance.F1.Sample.non.treated)[names(Abundance.F1.Sample.non.treated) == "Abundance.F1.Sample.non.treated"] <- "RawAbundance"
+
+Abundance.F2.Sample.non.treated <- data_raw %>%
+  select(Abundance.F2.Sample.non.treated)
+Abundance.F2.Sample.non.treated["sample"] <- "Abundance.F2.Sample.non.treated"
+names(Abundance.F2.Sample.non.treated)[names(Abundance.F2.Sample.non.treated) == "Abundance.F2.Sample.non.treated"] <- "RawAbundance"
+
+Abundance.F3.Sample.non.treated <- data_raw %>%
+  select(Abundance.F3.Sample.non.treated)
+Abundance.F3.Sample.non.treated["sample"] <- "Abundance.F3.Sample.non.treated"
+names(Abundance.F3.Sample.non.treated)[names(Abundance.F3.Sample.non.treated) == "Abundance.F3.Sample.non.treated"] <- "RawAbundance"
+
+Abundance.F4.Sample.non.treated <- data_raw %>%
+  select(Abundance.F4.Sample.non.treated)
+Abundance.F4.Sample.non.treated["sample"] <- "Abundance.F4.Sample.non.treated"
+names(Abundance.F4.Sample.non.treated)[names(Abundance.F4.Sample.non.treated) == "Abundance.F4.Sample.non.treated"] <- "RawAbundance"
+
+Abundance.F5.Sample.non.treated <- data_raw %>%
+  select(Abundance.F5.Sample.non.treated)
+Abundance.F5.Sample.non.treated["sample"] <- "Abundance.F5.Sample.non.treated"
+names(Abundance.F5.Sample.non.treated)[names(Abundance.F5.Sample.non.treated) == "Abundance.F5.Sample.non.treated"] <- "RawAbundance"
+
+Abundance.F6.Sample.treated <- data_raw %>%
+  select(Abundance.F6.Sample.treated)
+Abundance.F6.Sample.treated["sample"] <- "Abundance.F6.Sample.treated"
+names(Abundance.F6.Sample.treated)[names(Abundance.F6.Sample.treated) == "Abundance.F6.Sample.treated"] <- "RawAbundance"
+
+Abundance.F7.Sample.treated <- data_raw %>%
+  select(Abundance.F7.Sample.treated)
+Abundance.F7.Sample.treated["sample"] <- "Abundance.F7.Sample.treated"
+names(Abundance.F7.Sample.treated)[names(Abundance.F7.Sample.treated) == "Abundance.F7.Sample.treated"] <- "RawAbundance"
+
+Abundance.F8.Sample.treated <- data_raw %>%
+  select(Abundance.F8.Sample.treated)
+Abundance.F8.Sample.treated["sample"] <- "Abundance.F8.Sample.treated"
+names(Abundance.F8.Sample.treated)[names(Abundance.F8.Sample.treated) == "Abundance.F8.Sample.treated"] <- "RawAbundance"
+
+Abundance.F9.Sample.treated <- data_raw %>%
+  select(Abundance.F9.Sample.treated)
+Abundance.F9.Sample.treated["sample"] <- "Abundance.F9.Sample.treated"
+names(Abundance.F9.Sample.treated)[names(Abundance.F9.Sample.treated) == "Abundance.F9.Sample.treated"] <- "RawAbundance"
+
+Abundance.F10.Sample.treated <- data_raw %>%
+  select(Abundance.F10.Sample.treated)
+Abundance.F10.Sample.treated["sample"] <- "Abundance.F10.Sample.treated"
+names(Abundance.F10.Sample.treated)[names(Abundance.F10.Sample.treated) == "Abundance.F10.Sample.treated"] <- "RawAbundance"
+
+##Add datasets vertically
+MergedSamplesHepG2<- rbind(Abundance.F1.Sample.non.treated, Abundance.F2.Sample.non.treated, Abundance.F3.Sample.non.treated, Abundance.F4.Sample.non.treated, Abundance.F5.Sample.non.treated, Abundance.F6.Sample.treated, Abundance.F7.Sample.treated, Abundance.F8.Sample.treated, Abundance.F9.Sample.treated, Abundance.F10.Sample.treated)
+
+SamplesRaw <- read.csv("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/Report/Ranalysis/MergedSamplesHepG2.csv")
+
+# Define the number of colors you want
+nb.cols <- 10
+mycolors <- colorRampPalette(brewer.pal(8, "Set2"))(nb.cols)
+# Create a ggplot with 18 colors 
+# Use scale_fill_manual
+
+ggplot(SamplesRaw, aes(x=sample, y=log10(RawAbundance), color=sample)) + 
+  geom_boxplot(show.legend = FALSE) +
+  labs(x="group") + theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust=1), axis.title.x = element_blank()) +
+  ggtitle("Raw abundances HepG2") +
+  scale_x_discrete (limits = c("Abundance.F1.Sample.non.treated", "Abundance.F2.Sample.non.treated", "Abundance.F3.Sample.non.treated", "Abundance.F4.Sample.non.treated", "Abundance.F5.Sample.non.treated", "Abundance.F6.Sample.treated", "Abundance.F7.Sample.treated", "Abundance.F8.Sample.treated", "Abundance.F9.Sample.treated", "Abundance.F10.Sample.treated")) +
+  scale_color_manual(values=c("Abundance.F1.Sample.non.treated" = "#FF9999", "Abundance.F2.Sample.non.treated"= "#FF9999", "Abundance.F3.Sample.non.treated"= "#FF9999", "Abundance.F4.Sample.non.treated"= "#FF9999", "Abundance.F5.Sample.non.treated"= "#FF9999", "Abundance.F6.Sample.treated"= "#99CCFF", "Abundance.F7.Sample.treated"= "#99CCFF", "Abundance.F8.Sample.treated"= "#99CCFF", "Abundance.F9.Sample.treated"= "#99CCFF", "Abundance.F10.Sample.treated"= "#99CCFF"))
+  
+
+# read the proteins.csv file
+data_start <- read.csv("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/PD exports/Interfaphase/1854746152_AF_Huh7_NORM_Proteins.csv")
+
+# master proteins only
+newdata <- subset(data_start, Master=='IsMasterProtein')
+
+# Protein FDR confidence = high
+newdata2 <- subset(newdata, Protein.FDR.Confidence.Combined=='High')
+
+
+
+# Select raw abundances
+newdata3 <- newdata2[c(7, 62:71)]
+
+# filter out proteins missing values
+data_no_na <- na.omit(newdata3)
+
+# remove sp Accessions (contaminants)
+data_no_aa_noSP <- subset(data_no_na, Accession!='sp')
+
+# fix the column headers
+col_headers <- colnames(data_no_aa_noSP) 
+colnames(data_no_aa_noSP) <- col_headers
+
+# save the annotations (gene symbol and protein accession) and remove from data frame
+
+data_raw <- as.data.frame(data_no_aa_noSP[2:11]) 
+
+
+Abundance.F11.Sample.non.treated <- data_raw %>%
+  select(Abundance.F11.Sample.non.treated)
+Abundance.F11.Sample.non.treated["sample"] <- "Abundance.F11.Sample.non.treated"
+names(Abundance.F11.Sample.non.treated)[names(Abundance.F11.Sample.non.treated) == "Abundance.F11.Sample.non.treated"] <- "RawAbundance"
+
+Abundance.F12.Sample.non.treated <- data_raw %>%
+  select(Abundance.F12.Sample.non.treated)
+Abundance.F12.Sample.non.treated["sample"] <- "Abundance.F12.Sample.non.treated"
+names(Abundance.F12.Sample.non.treated)[names(Abundance.F12.Sample.non.treated) == "Abundance.F12.Sample.non.treated"] <- "RawAbundance"
+
+Abundance.F13.Sample.non.treated <- data_raw %>%
+  select(Abundance.F13.Sample.non.treated)
+Abundance.F13.Sample.non.treated["sample"] <- "Abundance.F13.Sample.non.treated"
+names(Abundance.F13.Sample.non.treated)[names(Abundance.F13.Sample.non.treated) == "Abundance.F13.Sample.non.treated"] <- "RawAbundance"
+
+Abundance.F14.Sample.non.treated <- data_raw %>%
+  select(Abundance.F14.Sample.non.treated)
+Abundance.F14.Sample.non.treated["sample"] <- "Abundance.F14.Sample.non.treated"
+names(Abundance.F14.Sample.non.treated)[names(Abundance.F14.Sample.non.treated) == "Abundance.F14.Sample.non.treated"] <- "RawAbundance"
+
+Abundance.F15.Sample.non.treated <- data_raw %>%
+  select(Abundance.F15.Sample.non.treated)
+Abundance.F15.Sample.non.treated["sample"] <- "Abundance.F15.Sample.non.treated"
+names(Abundance.F15.Sample.non.treated)[names(Abundance.F15.Sample.non.treated) == "Abundance.F15.Sample.non.treated"] <- "RawAbundance"
+
+Abundance.F16.Sample.treated <- data_raw %>%
+  select(Abundance.F16.Sample.treated)
+Abundance.F16.Sample.treated["sample"] <- "Abundance.F16.Sample.treated"
+names(Abundance.F16.Sample.treated)[names(Abundance.F16.Sample.treated) == "Abundance.F16.Sample.treated"] <- "RawAbundance"
+
+Abundance.F17.Sample.treated <- data_raw %>%
+  select(Abundance.F17.Sample.treated)
+Abundance.F17.Sample.treated["sample"] <- "Abundance.F17.Sample.treated"
+names(Abundance.F17.Sample.treated)[names(Abundance.F17.Sample.treated) == "Abundance.F17.Sample.treated"] <- "RawAbundance"
+
+Abundance.F18.Sample.treated <- data_raw %>%
+  select(Abundance.F18.Sample.treated)
+Abundance.F18.Sample.treated["sample"] <- "Abundance.F18.Sample.treated"
+names(Abundance.F18.Sample.treated)[names(Abundance.F18.Sample.treated) == "Abundance.F18.Sample.treated"] <- "RawAbundance"
+
+Abundance.F19.Sample.treated <- data_raw %>%
+  select(Abundance.F19.Sample.treated)
+Abundance.F19.Sample.treated["sample"] <- "Abundance.F19.Sample.treated"
+names(Abundance.F19.Sample.treated)[names(Abundance.F19.Sample.treated) == "Abundance.F19.Sample.treated"] <- "RawAbundance"
+
+Abundance.F20.Sample.treated <- data_raw %>%
+  select(Abundance.F20.Sample.treated)
+Abundance.F20.Sample.treated["sample"] <- "Abundance.F20.Sample.treated"
+names(Abundance.F20.Sample.treated)[names(Abundance.F20.Sample.treated) == "Abundance.F20.Sample.treated"] <- "RawAbundance"
+
+##Add datasets vertically
+MergedSamplesHuh7<- rbind(Abundance.F11.Sample.non.treated, Abundance.F12.Sample.non.treated, Abundance.F13.Sample.non.treated, Abundance.F14.Sample.non.treated, Abundance.F15.Sample.non.treated, Abundance.F16.Sample.treated, Abundance.F17.Sample.treated, Abundance.F18.Sample.treated, Abundance.F9.Sample.treated, Abundance.F20.Sample.treated)
+
+
+SamplesRaw <- read.csv("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/Report/Ranalysis/MergedSamplesHuh7.csv")
+
+
+ggplot(SamplesRaw, aes(x=sample, y=log10(RawAbundance), color=sample)) + 
+  geom_boxplot(show.legend = FALSE) + coord_trans(y = "log10")+
+  labs(x="group") + theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust=1), axis.title.x = element_blank()) +
+  ggtitle("Raw abundances Huh7") +
+  scale_x_discrete (limits = c("Abundance.F11.Sample.non.treated", "Abundance.F12.Sample.non.treated", "Abundance.F13.Sample.non.treated", "Abundance.F14.Sample.non.treated", "Abundance.F15.Sample.non.treated", "Abundance.F16.Sample.treated", "Abundance.F17.Sample.treated", "Abundance.F18.Sample.treated", "Abundance.F9.Sample.treated", "Abundance.F20.Sample.treated")) +
+  scale_color_manual(values=c("Abundance.F11.Sample.non.treated" = "#FF9999", "Abundance.F12.Sample.non.treated"= "#FF9999", "Abundance.F13.Sample.non.treated"= "#FF9999", "Abundance.F14.Sample.non.treated"= "#FF9999", "Abundance.F15.Sample.non.treated"= "#FF9999", "Abundance.F16.Sample.treated"= "#99CCFF", "Abundance.F17.Sample.treated"= "#99CCFF", "Abundance.F18.Sample.treated"= "#99CCFF", "Abundance.F9.Sample.treated"= "#99CCFF", "Abundance.F20.Sample.treated"= "#99CCFF"))
+
+```
+
+
+#### Organic phase
+
+```{r RawAbundanceHepG2organicphase, include = TRUE, warning=FALSE}
+
+# read the proteins.csv file
+data_start <- read.csv("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/PD exports/Interfaphase/1854746152_AF_HepG2_organicPhase_NORM_percolator_Proteins.csv")
+
+# master proteins only
+newdata <- subset(data_start, Master=='IsMasterProtein')
+
+# Protein FDR confidence = high
+newdata2 <- subset(newdata, Protein.FDR.Confidence.Combined=='High')
+
+# Select raw abundances
+newdata3 <- newdata2[c(7, 65:74)]
+
+# filter out proteins missing values
+data_no_na <- na.omit(newdata3)
+
+# remove sp Accessions (contaminants)
+data_no_aa_noSP <- subset(data_no_na, Accession!='sp')
+
+# fix the column headers
+col_headers <- colnames(data_no_aa_noSP) 
+colnames(data_no_aa_noSP) <- col_headers
+
+# save the annotations (gene symbol and protein accession) and remove from data frame
+
+data_raw <- as.data.frame(data_no_aa_noSP[2:11]) 
+
+Abundance.F21.Sample.non.treated <- data_raw %>%
+  select(Abundance.F21.Sample.non.treated)
+Abundance.F21.Sample.non.treated["sample"] <- "Abundance.F21.Sample.non.treated"
+names(Abundance.F21.Sample.non.treated)[names(Abundance.F21.Sample.non.treated) == "Abundance.F21.Sample.non.treated"] <- "RawAbundance"
+
+Abundance.F22.Sample.non.treated <- data_raw %>%
+  select(Abundance.F22.Sample.non.treated)
+Abundance.F22.Sample.non.treated["sample"] <- "Abundance.F22.Sample.non.treated"
+names(Abundance.F22.Sample.non.treated)[names(Abundance.F22.Sample.non.treated) == "Abundance.F22.Sample.non.treated"] <- "RawAbundance"
+
+Abundance.F23.Sample.non.treated <- data_raw %>%
+  select(Abundance.F23.Sample.non.treated)
+Abundance.F23.Sample.non.treated["sample"] <- "Abundance.F23.Sample.non.treated"
+names(Abundance.F23.Sample.non.treated)[names(Abundance.F23.Sample.non.treated) == "Abundance.F23.Sample.non.treated"] <- "RawAbundance"
+
+Abundance.F24.Sample.non.treated <- data_raw %>%
+  select(Abundance.F24.Sample.non.treated)
+Abundance.F24.Sample.non.treated["sample"] <- "Abundance.F24.Sample.non.treated"
+names(Abundance.F24.Sample.non.treated)[names(Abundance.F24.Sample.non.treated) == "Abundance.F24.Sample.non.treated"] <- "RawAbundance"
+
+Abundance.F25.Sample.non.treated <- data_raw %>%
+  select(Abundance.F25.Sample.non.treated)
+Abundance.F25.Sample.non.treated["sample"] <- "Abundance.F25.Sample.non.treated"
+names(Abundance.F25.Sample.non.treated)[names(Abundance.F25.Sample.non.treated) == "Abundance.F25.Sample.non.treated"] <- "RawAbundance"
+
+Abundance.F26.Sample.treated <- data_raw %>%
+  select(Abundance.F26.Sample.treated)
+Abundance.F26.Sample.treated["sample"] <- "Abundance.F26.Sample.treated"
+names(Abundance.F26.Sample.treated)[names(Abundance.F26.Sample.treated) == "Abundance.F26.Sample.treated"] <- "RawAbundance"
+
+Abundance.F27.Sample.treated <- data_raw %>%
+  select(Abundance.F27.Sample.treated)
+Abundance.F27.Sample.treated["sample"] <- "Abundance.F27.Sample.treated"
+names(Abundance.F27.Sample.treated)[names(Abundance.F27.Sample.treated) == "Abundance.F27.Sample.treated"] <- "RawAbundance"
+
+Abundance.F28.Sample.treated <- data_raw %>%
+  select(Abundance.F28.Sample.treated)
+Abundance.F28.Sample.treated["sample"] <- "Abundance.F28.Sample.treated"
+names(Abundance.F28.Sample.treated)[names(Abundance.F28.Sample.treated) == "Abundance.F28.Sample.treated"] <- "RawAbundance"
+
+Abundance.F29.Sample.treated <- data_raw %>%
+  select(Abundance.F29.Sample.treated)
+Abundance.F29.Sample.treated["sample"] <- "Abundance.F29.Sample.treated"
+names(Abundance.F29.Sample.treated)[names(Abundance.F29.Sample.treated) == "Abundance.F29.Sample.treated"] <- "RawAbundance"
+
+Abundance.F30.Sample.treated <- data_raw %>%
+  select(Abundance.F30.Sample.treated)
+Abundance.F30.Sample.treated["sample"] <- "Abundance.F30.Sample.treated"
+names(Abundance.F30.Sample.treated)[names(Abundance.F30.Sample.treated) == "Abundance.F30.Sample.treated"] <- "RawAbundance"
+
+##Add datasets vertically
+MergedSamplesHepG2organic<- rbind(Abundance.F21.Sample.non.treated, Abundance.F22.Sample.non.treated, Abundance.F23.Sample.non.treated, Abundance.F24.Sample.non.treated, Abundance.F25.Sample.non.treated, Abundance.F26.Sample.treated, Abundance.F27.Sample.treated, Abundance.F28.Sample.treated, Abundance.F29.Sample.treated, Abundance.F30.Sample.treated)
+
+SamplesRaw <- read.csv("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/Report/Ranalysis/MergedSamplesHepG2organic.csv")
+
+# Define the number of colors you want
+nb.cols <- 10
+mycolors <- colorRampPalette(brewer.pal(8, "Set2"))(nb.cols)
+# Create a ggplot with 18 colors 
+# Use scale_fill_manual
+
+ggplot(SamplesRaw, aes(x=sample, y=log10(RawAbundance), color=sample)) + 
+  geom_boxplot(show.legend = FALSE) +
+  labs(x="group") + theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust=1), axis.title.x = element_blank()) +
+  ggtitle("Raw abundances HepG2") +
+  scale_x_discrete (limits = c("Abundance.F21.Sample.non.treated", "Abundance.F22.Sample.non.treated", "Abundance.F23.Sample.non.treated", "Abundance.F24.Sample.non.treated", "Abundance.F25.Sample.non.treated", "Abundance.F26.Sample.treated", "Abundance.F27.Sample.treated", "Abundance.F28.Sample.treated", "Abundance.F29.Sample.treated", "Abundance.F30.Sample.treated")) +
+  scale_color_manual(values=c("Abundance.F21.Sample.non.treated" = "#FF9999", "Abundance.F22.Sample.non.treated"= "#FF9999", "Abundance.F23.Sample.non.treated"= "#FF9999", "Abundance.F24.Sample.non.treated"= "#FF9999", "Abundance.F25.Sample.non.treated"= "#FF9999", "Abundance.F26.Sample.treated"= "#99CCFF", "Abundance.F27.Sample.treated"= "#99CCFF", "Abundance.F28.Sample.treated"= "#99CCFF", "Abundance.F29.Sample.treated"= "#99CCFF", "Abundance.F30.Sample.treated"= "#99CCFF"))
+  
+
+# read the proteins.csv file
+data_start <- read.csv("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/PD exports/Interfaphase/1854746152_AF_Huh7_organicPhase_NORM_percolator_Proteins.csv")
+
+# master proteins only
+newdata <- subset(data_start, Master=='IsMasterProtein')
+
+# Protein FDR confidence = high
+newdata2 <- subset(newdata, Protein.FDR.Confidence.Combined=='High')
+
+
+
+# Select raw abundances
+newdata3 <- newdata2[c(7, 64:72)]
+
+# filter out proteins missing values
+data_no_na <- na.omit(newdata3)
+
+# remove sp Accessions (contaminants)
+data_no_aa_noSP <- subset(data_no_na, Accession!='sp')
+
+# fix the column headers
+col_headers <- colnames(data_no_aa_noSP) 
+colnames(data_no_aa_noSP) <- col_headers
+
+# save the annotations (gene symbol and protein accession) and remove from data frame
+
+data_raw <- as.data.frame(data_no_aa_noSP[2:10]) 
+
+
+Abundance.F31.Sample.non.treated <- data_raw %>%
+  select(Abundance.F31.Sample.non.treated)
+Abundance.F31.Sample.non.treated["sample"] <- "Abundance.F31.Sample.non.treated"
+names(Abundance.F31.Sample.non.treated)[names(Abundance.F31.Sample.non.treated) == "Abundance.F31.Sample.non.treated"] <- "RawAbundance"
+
+Abundance.F32.Sample.non.treated <- data_raw %>%
+  select(Abundance.F32.Sample.non.treated)
+Abundance.F32.Sample.non.treated["sample"] <- "Abundance.F32.Sample.non.treated"
+names(Abundance.F32.Sample.non.treated)[names(Abundance.F32.Sample.non.treated) == "Abundance.F32.Sample.non.treated"] <- "RawAbundance"
+
+Abundance.F33.Sample.non.treated <- data_raw %>%
+  select(Abundance.F33.Sample.non.treated)
+Abundance.F33.Sample.non.treated["sample"] <- "Abundance.F33.Sample.non.treated"
+names(Abundance.F33.Sample.non.treated)[names(Abundance.F33.Sample.non.treated) == "Abundance.F33.Sample.non.treated"] <- "RawAbundance"
+
+Abundance.F34.Sample.non.treated <- data_raw %>%
+  select(Abundance.F34.Sample.non.treated)
+Abundance.F34.Sample.non.treated["sample"] <- "Abundance.F34.Sample.non.treated"
+names(Abundance.F34.Sample.non.treated)[names(Abundance.F34.Sample.non.treated) == "Abundance.F34.Sample.non.treated"] <- "RawAbundance"
+
+Abundance.F35.Sample.treated <- data_raw %>%
+  select(Abundance.F35.Sample.treated)
+Abundance.F35.Sample.treated["sample"] <- "Abundance.F35.Sample.treated"
+names(Abundance.F35.Sample.treated)[names(Abundance.F35.Sample.treated) == "Abundance.F35.Sample.treated"] <- "RawAbundance"
+
+Abundance.F36.Sample.treated <- data_raw %>%
+  select(Abundance.F36.Sample.treated)
+Abundance.F36.Sample.treated["sample"] <- "Abundance.F36.Sample.treated"
+names(Abundance.F36.Sample.treated)[names(Abundance.F36.Sample.treated) == "Abundance.F36.Sample.treated"] <- "RawAbundance"
+
+Abundance.F37.Sample.treated <- data_raw %>%
+  select(Abundance.F37.Sample.treated)
+Abundance.F37.Sample.treated["sample"] <- "Abundance.F37.Sample.treated"
+names(Abundance.F37.Sample.treated)[names(Abundance.F37.Sample.treated) == "Abundance.F37.Sample.treated"] <- "RawAbundance"
+
+Abundance.F38.Sample.treated <- data_raw %>%
+  select(Abundance.F38.Sample.treated)
+Abundance.F38.Sample.treated["sample"] <- "Abundance.F38.Sample.treated"
+names(Abundance.F38.Sample.treated)[names(Abundance.F38.Sample.treated) == "Abundance.F38.Sample.treated"] <- "RawAbundance"
+
+Abundance.F39.Sample.treated <- data_raw %>%
+  select(Abundance.F39.Sample.treated)
+Abundance.F39.Sample.treated["sample"] <- "Abundance.F39.Sample.treated"
+names(Abundance.F39.Sample.treated)[names(Abundance.F39.Sample.treated) == "Abundance.F39.Sample.treated"] <- "RawAbundance"
+
+
+##Add datasets vertically
+MergedSamplesHuh7organic<- rbind(Abundance.F31.Sample.non.treated, Abundance.F32.Sample.non.treated, Abundance.F33.Sample.non.treated, Abundance.F34.Sample.non.treated, Abundance.F35.Sample.treated, Abundance.F36.Sample.treated, Abundance.F37.Sample.treated, Abundance.F38.Sample.treated, Abundance.F39.Sample.treated)
+
+SamplesRaw <- read.csv("/Users/catarinafranco/Dropbox (Cambridge University)/Analysis/Willis/AlexFulton_OOPS_1854746152/Report/Ranalysis/MergedSamplesHuh7organic.csv")
+
+
+ggplot(SamplesRaw, aes(x=sample, y=log10(RawAbundance), color=sample)) + 
+  geom_boxplot(show.legend = FALSE) +
+  labs(x="group") + theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust=3), axis.title.x = element_blank()) +
+  ggtitle("Raw abundances Huh7 organic phase") +
+  scale_x_discrete (limits = c("Abundance.F31.Sample.non.treated", "Abundance.F32.Sample.non.treated", "Abundance.F33.Sample.non.treated", "Abundance.F34.Sample.non.treated", "Abundance.F35.Sample.treated", "Abundance.F36.Sample.treated", "Abundance.F37.Sample.treated", "Abundance.F38.Sample.treated", "Abundance.F39.Sample.treated")) +
+  scale_color_manual(values=c("Abundance.F31.Sample.non.treated" = "#FF9999", "Abundance.F32.Sample.non.treated"= "#FF9999", "Abundance.F33.Sample.non.treated"= "#FF9999", "Abundance.F34.Sample.non.treated"= "#FF9999", "Abundance.F35.Sample.treated"= "#99CCFF", "Abundance.F36.Sample.treated"= "#99CCFF", "Abundance.F37.Sample.treated"= "#99CCFF", "Abundance.F38.Sample.treated"= "#99CCFF", "Abundance.F39.Sample.treated"= "#99CCFF"))
+
+```
+
+
+#### Input
+
+Soon
+
+## {-}
+
+## Files supplied {.tabset}
+
+For differential analysis you can download PD .txt files through the following links:
+
+[PD exports](https://www.dropbox.com/sh/v1xr9pwnm7i5ydg/AADEty_liJjcPEobYjxmpd3wa?dl=0)
+
+The description of the several columns on PD files can be found in the end of the report to help you navigate the data.
+Please do not hesitate in contacting us if there are any doubts.
+
+
+## Acknowledging the Facility
+
+**When to include the Mass4Tox facility in the Acknowledgements**
+Every time we have analysed your samples, helped you design the experiments or contributed in any way to your experiments, you **must** acknowledge our involvement/support in your publications (this includes all different type of publications e.g., papers, posters, reports, oral communications). Your acknowledgements will be used as metrics for the facility output and are of adamant importance to justify future funds requests (e.g., for new or upgrade(s) of the our mass spectrometers).
+
+We also will ask you once you have a publication with results generated by the Mass4Tox Facility could you please inform Dr Catarina Franco (@cd735) so we can keep track of the acknowledgments.
+
+**How to Acknowledge**
+Mass spectrometry analysis was/were performed at the Proteomics Facility of the Medical Research Council Toxicology Unit University of Cambridge, Cambridge, Uk. The authors would like to thank Dr Catarina Franco and Dr Bini Ramachandran for the help with *manuscript preparation/sample preparation/data analysis/method development* and/or *providing access to (equipment e.g., AKTA pure)* and/or *helpful discussions on method development/sample analysis/experimental design*.
+
+**When to consider authorship**
+Whenever a member of the facility has made a significant intellectual contribution beyond routine analysis you should consider including the given member as a co-author of your publication. Please be mindful that even most of routine analysis have a lot of method development/benchmarking that happens behind the curtains so that we guarantee that the instrument is running in its best performance.
+
+
+***
+#### Description of the parameters (columns) on the Protein Discoverer exported .csv and .xls files
+
+<font size="2">
+
+ * **AAs** - Displays the length of the protein sequence.
+ * **Decoy Proteins** - Displays the number of the higher-ranked decoy or reverse proteins. This column appears when the workflow includes the Protein FDR Validator node. For more information, see Protein FDR Validator Node.
+ * **Peptides** - Displays the total number of distinct peptide sequences identified from all included searches.
+ * **Peptides (by Search Engine)** - Displays the number of distinct peptide sequences in the protein. This column appears when the consensus workflow includes the Protein Scorer node. For information on this node, see Protein Scorer Node.
+ * **Protein Groups** - Displays the total number of protein groups.
+ * **Protein Unique Peptides** - Displays the total number of peptides that are unique to a particular protein.
+ * **PSMs** - Displays the number of identified peptide spectrum matches identified from all included searches, including those redundantly identified.
+ * **PSMs (by Search Engine)** - Displays the number of identified peptide spectrum matches identified from all included searches, including those redundantly identified. This column appears when the consensus workflow includes the Protein Scorer node. For information on this node, see Protein Scorer Node.
+ * **Razor Peptides** - Displays the number of razor peptides (that is, peptides shared among multiple protein groups or proteins) used to quantify the protein when you use razor peptides for quantification. This column appears when you set the Peptides to Use parameter of the Precursor Ions Quantifier node or the Reporter Ions Quantifier node to All or Unique + Razor.
+ * **Unique Peptides** - Displays the total number of distinct peptide sequences unique to the protein group.
+ * **Abundance Ratio Adj. P-Values** - Displays the p-values adjusted by using the Benjamini-Hochberg correction for the false discovery rate. For more information on p-values, see Calculating P-Values and Adjusted P-Values for Quantification Results.
+ * **Abundance Ratios** - Displays abundance ratios as normal space values. This column appears when there are sample ratios defined in the analysis setup.
+ * **Abundance Ratios (by Bio.Rep.)** - Displays the abundance ratios of the biological replicates as normal space values.
+ * **Abundance Ratios (log2)** - Displays the abundance ratios as log2 values.
+ * **Abundance Ratios (log2) (by Bio. Rep.)** - Displays the abundance ratios of the biological replicates as log2 values.
+ * **Abundances** - Displays the abundance values of the samples before scaling and normalization.
+ * **Abundances (by Bio. Rep.)** - Displays the abundance values of the biological replicates.
+ * **Abundances (by Bio. Rep.) Counts** - Displays the number of abundance values used to calculate the abundances of the biological replicates.
+ * **Abundances (Grouped)** - Displays the abundance values of the sample groups. A grouped abundance value is calculated as the arithmetic mean of all the replicate abundance values within a sample group. You can specify the sample grouping on the Grouping and Quantification page when you set up an analysis. This column appears when you group samples in the analysis setup, and there is at least one sample group consisting of at least two samples.
+ * **Abundances (Grouped) Standard Errors [%]** - Displays the standard error of the abundance values of the samples in a sample group, normalized to the group’s median abundance.
+ * **Abundances (Normalized)** - Displays the normalized abundances values of the samples. This column appears when you set the Normalization Mode parameter of the Precursor Ions Quantifier node or the Reporter Ions Quantifier node to Total Peptide Amount or Specific Protein Amount.
+ * **Abundances (Scaled)** - Displays the normalized and scaled abundance values of the samples. This column appears when you set the Scaling Mode parameter of the Precursor Ions Quantifier node or the Reporter Ions Quantifier node to On All Average or On Controls Avg.
+ * **Abundances Counts** - Displays the number of abundance values used to calculate the sample abundance.
+ * **Accession** - Displays by default the unique identifier assigned to the protein by the FASTA database used to generate the report.
+ * **Biological Process** - Displays the GO Slim categories of the protein’s biological processes as colored boxes. This column appears when the consensus workflow includes the Protein Annotation node.
+ * **calc. pI** - Displays the theoretically calculated isoelectric point for the protein, which is the pH at which a particular molecule carries no net electrical charge. The amino acids that make up proteins can be positive, negative, neutral, or polar in nature, and together they give a protein its overall charge. At a pH below their isoelectric point, proteins carry a net positive charge; at a pH above their isoelectric point, they carry a net negative charge. Gel electrophoresis can then separate proteins according to their isoelectric point (overall charge) with a polyacrylamide gel, using a technique called isoelectric focusing. This technique uses a pH gradient to separate proteins and is the first step in two-dimensional gel polyacrylamide gel electrophoresis. When you have searched the fractions resulting from isoelectric focusing, you can use the calc. pI value to estimate whether you might expect to find a particular protein in the given fraction.
+ * **Protein FDR Confidence** - Displays the level of confidence for the identified protein as determined by the Protein FDR Validator node. This column appears when the consensus workflow includes the Protein FDR Validator node in the consensus workflow. For more information on this node, see Protein FDR Validator Node.
+ * **Protein FDR Group Confidence** - Displays the level of confidence for the identified protein group as determined by the Protein FDR Validator node. This column appears when the consensus workflow includes the Protein FDR Validator node. For more information on this node, see Protein FDR Validator Node.
+ * **Master** - Indicates whether the protein is the master protein of a protein group.
+ * **Protein Group IDs** - Displays the identification numbers of the reference protein groups.
+ * **Biological Process** - Displays the GO Slim categories of the protein’s biological processes as colored boxes. This column appears when the consensus workflow includes the Protein Annotation node.
+ * **Cellular Component** - Displays the GO Slim categories of the protein’s cellular components as colored boxes. This column appears when the consensus workflow includes the Protein Annotation node.
+ * **Checked** - Indicates whether the item is selected.
+ * **Chromosome** - Displays chromosome information from the Ensembl genome database. This column appears when the consensus workflow includes the Protein Annotation node.
+ * **Coverage [%]** - Displays the percentage of the protein sequences covered by identified peptides.
+ * **Coverage [%] (by Search Engine)** - Displays the percentage of the protein sequence covered by identified peptides.
+ * **Description** - Provides the name of the protein exclusive of the identifier that appears in the Accession column. This description appears in the table by default.
+ * **Ensembl Gene ID** - Displays annotations from the Ensembl genome database. This column appears when the consensus workflow includes the Protein Annotation node.
+ * **Entrez Gene ID** - Displays the Entrez Gene database identification of the gene that the protein is derived from. If the gene is not stored in the Entrez Gene database, the value displayed is 0. This column appears when the consensus workflow includes the Protein Annotation node.
+ * **Exp. q-value** - Displays the q-values derived from the validation. The values must be greater than the thresholds set by the Protein FDR Validator node. This column appears when the consensus workflow includes the Protein FDR Validator node. For more information on this node, see Protein FDR Validator Node.
+ * **FASTA Title Lines** - Displays the FASTA title of the protein.
+ * **Found in Fractions** - Displays the best confidence of the PSMs of the protein that the application identified in the fractions.
+ * **Found in Sample Groups** - Displays the best confidence of the PSMs of the protein that the application identified in the sample groups.
+ * **Found in Samples** - Displays the best confidence of the PSMs of the protein that the application identified in the samples.
+ * **Gene Symbol** - Displays the official gene name that is used in publications. This information is taken from the second line of the General page of the ProteinCard page. This column appears when the consensus workflow includes the Protein Annotation node.
+ * **KEGG Pathway Accessions** - Displays the accessions from the KEGG PATHWAY database. This column appears on the Proteins page when you include the Protein Annotation node in the consensus workflow.
+ * **KEGG Pathways** - Displays the descriptions from the KEGG PATHWAY database. This column appears on the Proteins page when you include the Protein Annotation node in the consensus workflow.
+ * **Modifications** - Displays the modifications identified in the protein consolidated from all PSMs. The column shows confidence value if the IMP-ptmRS node was used in the processing workflow.
+ * **Molecular Function** - Displays the GO Slim categories of the protein’s molecular functions as colored boxes. This column appears when the consensus workflow includes the Protein Annotation node.
+ * **MW [kDa]** - Displays the calculated molecular weight of the protein. The application calculates the molecular weight without considering PTMs. Separating proteins by molecular weight can be one of the steps in two-dimensional gel electrophoresis. You can use the protein’s molecular weight as a rough constraint to estimate whether it is reasonable to identify a particular protein in a certain fraction that was searched.
+ * **Pfam IDs** - Displays the identification numbers of families of proteins. A special sequence comparison algorithm, called the Hidden Markov Model, groups proteins into families by comparing the sequences. This column appears when the consensus workflow includes the Protein Annotation node.
+ * **Protein FDR Confidence** - Displays the level of confidence of the identified protein groups as determined by the Protein FDR Validator node. This column appears when the consensus workflow includes the Protein FDR Validator node. For more information on this node, see Protein FDR Validator Node.
+ * **Protein Group IDs** - Displays the identification numbers of the referenced protein groups.
+ * **Score Sequest HT** - Displays the protein score, which is the sum of the scores of the individual peptides. This column appears when the consensus workflow includes the Protein Scorer node. For information on this node, see Protein Scorer Node.
+ * **Sequence** - Displays the sequence of amino acids that compose the peptide in the protein.
+ * **Sum PEP Score** - Displays the scores that the Protein FDR Validator node calculates on the basis of the PEP values of the PSMs. The application uses these scores to rank the list of proteins.
+ * **Unique Sequence ID** - Displays a unique identifier for the protein sequence.
+ * **WikiPathway Accessions** - Displays the accessions from the Wiki Pathways database. This column appears on the Proteins page when you include the Protein Annotation node in the consensus workflow.
+ * **WikiPathways** - Displays the descriptions from the Wiki Pathways database. This column appears on the Proteins page when you include the Protein Annotation node in the consensus workflow.
+ * **Contaminant** - Displays an X symbol next to the proteins marked as contaminants in the searched FASTA file or files. This columns appears when the consensus workflow includes the Protein Marker node. For more information see Protein Scorer Node.
+ * **Species Map** - Extracts from the FASTA database the species names for proteins and displays and annotates them as colored entries in a distribution map. This column appears only when you include the Protein Marker node in the consensus workflow and set its As Species Map parameter to True.
+ * **Species** - Extracts from the FASTA database the species names for proteins and displays and annotates them as semicolon-separated text. This column appears only when you include the Protein Marker node in the consensus workflow and set its As Species Names parameter to True.
+ 
+ </font>
